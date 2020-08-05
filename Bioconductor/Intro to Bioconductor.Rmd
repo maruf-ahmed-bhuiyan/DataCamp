@@ -1,0 +1,104 @@
+---
+title: "Introduction to Bioconductor"
+author: "Maruf Ahmed Bhuiyan"
+date: "7/24/2020"
+output:
+  word_document:
+    toc: yes
+---
+```{r}
+setwd("/Users/marufahmedbhuiyan/Desktop/DataCamp/Bioconductor")
+```
+
+# Install and Load BiocManager and BSgenome
+```{r}
+# Install BiocManager & Load using library
+library(BiocManager)
+
+# Install BSgenome
+#BiocManager::install("BSgenome")
+
+# Install Scerevisiae genome from BSgenome
+#BiocManager::install("BSgenome.Scerevisiae.UCSC.sacCer3")
+
+packageVersion("BSgenome")
+
+# Load the genome
+library(BSgenome.Scerevisiae.UCSC.sacCer3)
+
+```
+# S4 class definition
+We will use the class BSgenome.
+Let's check the formal definition of this class by using the function showClass("className"). Check the BSgenome class results and find its parent classes (Extends) and the classes that inherit from it (Subclasses).
+
+```{r}
+showClass("BSgenome")
+
+#Extends: "GenomeDescription"
+
+#Known Subclasses: "MaskedBSgenome"
+
+isS4(BSgenome)
+
+# BSgenome is S3
+```
+
+# Discovering the Yeast genome
+Let's continue to explore the yeast genome using the package BSgenome.Scerevisiae.UCSC.sacCer3 which is already installed for you.
+
+As with other data in R, we can use head() and tail() to explore the yeastGenome object. We can also subset the genome by chromosome by using $ as follows: object_name$chromosome_name. If you need the names of the chromosomes use the names() function.
+
+Another nifty function is nchar(), used to count the number of characters in a sequence.
+
+```{r}
+
+yeast <- BSgenome.Scerevisiae.UCSC.sacCer3
+
+# How many chromosomes
+length(yeast)
+
+# What are the name of the chromosomes
+names(yeast)
+
+# Length of each chromosome
+seqlengths(yeast)
+
+
+head(yeast$chrM)
+tail(yeast$chrM)
+
+# sequence length of chr M
+nchar(yeast$chrM)
+
+print(yeast$chrM)
+
+
+```
+
+# Partitioning the Yeast genome
+Genomes are often big, but interest usually lies in specific regions of them. Therefore, we need to subset a genome by extracting parts of it. To pick a sequence interval use getSeq() and specify the name of the chromosome, and the start and end of the sequence interval:
+
+getSeq(yeastGenome, names = "chrI", start = 100, end = 150)
+Notice that names is optional; if not specified, it will return all chromosomes. The parameters start and end are also optional and, if not specified, will take the default values 1 and the length of the sequence respectively.
+
+```{r}
+
+# getSeq(yeastGenome, names = "chrI", start = 100, end = 150)
+
+getSeq(yeast, end = 30)
+```
+
+# Available Genomes
+As a recap, the BSgenome package makes available various public genomes. If you want to explore the available genomes from this package, you can use:
+
+available.genomes()
+The list of names will appear in the following format: BSgenome.speciesName.provider.version.
+
+After running this function, can you tell which is the major provider of available genomes?
+
+```{r}
+available.genomes()
+
+# UCSC- 74 genomes
+```
+

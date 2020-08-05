@@ -1,0 +1,65 @@
+---
+title: "RNA-seq Analysis"
+author: "Maruf Ahmed Bhuiyan"
+date: "8/1/2020"
+output: html_document
+---
+
+## RNA-Seq Packages
+We will be using DESeq2 for performing the differential expression analysis and additional R packages for data wrangling and plotting. Before we can run any analyses, we need to load the following packages DESeq2, RColorBrewer, pheatmap, and tidyverse.
+
+```{r}
+# Using library(), import the packages DESeq2, RColorBrewer, 
+# pheatmap, and tidyverse.
+
+# Load library for DESeq2
+library(DESeq2)
+
+# Load library for RColorBrewer
+library(RColorBrewer)
+
+# Load library for pheatmap
+# install.packages("pheatmap")
+library(pheatmap)
+
+# Load library for tidyverse
+library(tidyverse)
+```
+
+#### Exploring the raw count matrix
+Let's explore the contents of the raw count matrix. The dataset smoc2_rawcounts has already been loaded for you using the read.csv() function.
+
+```{r}
+smoc2_rawcounts <- read.csv("fibrosis_smoc2_rawcounts.csv")
+
+# Explore the first six observations of smoc2_rawcounts
+head(smoc2_rawcounts)
+
+# Explore the structure of smoc2_rawcounts
+str(smoc2_rawcounts)
+```
+
+#### DGE Theory: Metadata
+Use the information below to create a metadata data frame for the fibrosis count data called metadata with columns genotype and condition. The sample names (e.g. smoc2_fibrosis1, smoc2_fibrosis2, etc.) should be the row names of the data frame:
+
+```{r}
+# Create genotype vector
+genotype <- c(rep("smoc2_oe",7))
+genotype
+
+# Create condition vector
+condition <- c(rep("fibrosis",4),rep("normal",3))
+condition
+
+# Create data frame
+smoc2_metadata <- data.frame(genotype, condition)
+
+# Assign the row names of the data frame
+sample_names <- c("smoc2_fibrosis1", "smoc2_fibrosis2", "smoc2_fibrosis3", "smoc2_fibrosis4", "smoc2_normal1", "smoc2_normal3", "smoc2_normal4")
+rownames(smoc2_metadata) <- c(sample_names)
+
+smoc2_metadata
+
+# View(smoc2_metadata)
+```
+

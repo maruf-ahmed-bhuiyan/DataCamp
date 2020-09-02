@@ -1,0 +1,386 @@
+---
+title: "RNAseq"
+author: "Maruf Ahmed Bhuiyan"
+date: "9/2/2020"
+output: pdf_document
+---
+# Matching metadata and counts data:
+To perform any analysis with DESeq2, we need to create a DESeq2 object by providing the raw counts, metadata, and design formula. To do this, we need to read in the raw counts data and associated metadata we created previously, make sure the sample names are in the same order in both datasets, then create a DESeq2 object to use for differential expression analysis. We will use the design formula ~ condition to test for differential expression between conditions (normal and fibrosis).
+
+The DESeq2 and dplyr libraries have been loaded for you, and the smoc2_rawcounts and smoc2_metadata files have been read in.
+
+## Instructions:
+Use the match() function to return the indices for how to reorder the columns of the counts data to match the order of the row names of the metadata. Assign the result to reorder_idx.
+
+Reorder the columns of the count data with reorder_idx such that the column names match the order of the row names in the metadata.
+
+Create a DESeq2 object, dds_smoc2 using the DESeqDataSetFromMatrix() function using the metadata and reordered counts.
+
+```{r}
+# Use the match() function to reorder the columns of the raw counts
+reorder_idx <- match(rownames(smoc2_metadata), colnames(smoc2_rawcounts))
+
+# Reorder the columns of the count data
+reordered_smoc2_rawcounts <- smoc2_rawcounts[ , reorder_idx]
+
+# Create a DESeq2 object
+dds_smoc2 <- DESeqDataSetFromMatrix(countData =  reordered_smoc2_rawcounts,
+                                    colData =  smoc2_metadata,
+                                    design = ~ condition)
+
+# Good work, we now have a DESeq2 object storing our raw counts and metadata that we can use to explore the data with DESeq2 functions and to use for performing the differential expression analysis.
+```
+
+# Normalizing counts with DESeq2:
+We have created the DESeq2 object and now wish to perform quality control on our samples. Therefore, we need to generate the normalized counts (normalized for library size, which is the total number of gene counts per sample, while accounting for library composition). To obtain the normalized counts, use the DESeq2 object and generate the normalized counts matrix.
+
+## Instructions:
+Estimate the size factors for the smoc2 count data using the estimateSizeFactors() function and save back to the dds_smoc2 object
+
+Extract the normalized count values from dds_smoc2 and save as smoc2_normalized_counts using the counts() function.
+
+```{r}
+# Determine the size factors to use for normalization
+dds_smoc2 <- estimateSizeFactors(dds_smoc2)
+
+# Extract the normalized counts
+smoc2_normalized_counts <- counts(dds_smoc2,normalized = TRUE)
+
+# Congratulations, we now have our normalized counts, which we can use to accurately compare gene expression between samples. We will be using the normalized counts to explore similarities in gene expression between each of our samples, with the expection that our biological replicates are more similar to each other and the different conditions (wild type and fibrosis) are more different.
+```
+
+# Hierarchical heatmap by condition:
+When performing quality assessment of our count data, we need to transform the normalized counts for better visualization of the variance for unsupervised clustering analyses. To assess the similarity of the smoc2 samples using hierarchical heatmaps, transform the normalized counts and perform hierarchical clustering analysis. Assume all libraries have been loaded, the DESeq2 object created, and the size factors have been stored in the DESeq2 object, dds_smoc2.
+
+## Instructions:
+Transform the normalized counts from the dds_smoc2 object using the vst() function with the blind argument and save to vsd_smoc2.
+Extract the matrix of transformed normalized counts from the vsd_smoc2 object using the assay() function and save as vsd_mat_smoc2.
+Calculate the correlation values between samples and save to vsd_cor_smoc2.
+Create a heatmap of the correlation values using pheatmap() with an annotation bar designating condition from the smoc2_metadata data frame.
+
+```{r}
+# Transform the normalized counts 
+vsd_smoc2 <- vst(dds_smoc2, blind = TRUE)
+
+# Extract the matrix of transformed counts
+vsd_mat_smoc2 <- assay(vsd_smoc2)
+
+# Compute the correlation values between samples
+vsd_cor_smoc2 <- cor(vsd_mat_smoc2) 
+
+# Plot the heatmap
+pheatmap(vsd_cor_smoc2, annotation = select(smoc2_metadata, condition))
+
+# Well done, now let's assess the heatmap to determine whether our samples cluster as expected and if we have any outliers. If we had additional metadata for possible sources of variation, then we would want to include these factors as annotation bars as well.
+```
+
+# PCA analysis:
+To continue with the quality assessment of our samples, in the first part of this exercise, we will perform PCA to look how our samples cluster and whether our condition of interest corresponds with the principal components explaining the most variation in the data. In the second part, we will answer questions about the PCA plot.
+
+To assess the similarity of the smoc2 samples using PCA, we need to transform the normalized counts then perform the PCA analysis. Assume all libraries have been loaded, the DESeq2 object created, and the size factors have been stored in the DESeq2 object, dds_smoc2.
+
+## Instructions:
+Run the code to transform the normalized counts.
+Perform PCA by plotting PC1 vs PC2 using the DESeq2 plotPCA() function on the DESeq2 transformed counts object, vsd_smoc2 and specify the intgroup argument as the factor to color the plot.
+
+```{r}
+# Transform the normalized counts 
+vsd_smoc2 <- vst(dds_smoc2, blind = TRUE)
+
+# Plot the PCA of PC1 and PC2
+plotPCA(vsd_smoc2, intgroup="condition")
+
+# Well done! If there is an outlier on the heatmap, then we would want to see it with PCA as well. We similarly hope our biological replicates cluster together and conditions separate by PC1 and/or PC2. If we don't see this, there may be sources of variation present in our data and if these sources are present in our metadata, then we can explore these sources of variation by coloring the PCA by these factors. Alternatively, we might not see sample groups separate if the condition of interest does not cause a big change in gene expression.
+```
+
+# Creating the DE object:
+NOTE: It may take a bit longer to load this exercise.
+
+Using our smoc2 overexpression samples, create the DESeq2 object such that the design formula specifies the comparison of the expression differences between the fibrosis and normal samples. The metadata for the experiment is displayed below. We have the data read in with the samples in the same order for the smoc2 raw counts, reordered_smoc2_rawcounts, and the metadata, smoc2_metadata.
+
+## Instructions:
+Create a DESeq2 object called dds_smoc2 using the DESeqDataSetFromMatrix() function by specifying the arguments: countData, colData, and design.
+
+Run the DESeq() function to estimate the size factors, calculate the dispersions, and perform the model fitting and testing.
+
+```{r}
+# Create DESeq2 object
+dds_smoc2 <- DESeqDataSetFromMatrix(countData = reordered_smoc2_rawcounts,
+                                    colData = smoc2_metadata,
+                                    design = ~ condition)
+
+# Run the DESeq2 analysis
+DESeq2 <- DESeq(dds_smoc2)
+
+# Great work! You have successfully created a DESeq2 object and run the differential expression analysis.
+```
+
+# DESeq2 model - exploring dispersions:
+NOTE: It may take a bit longer to load this exercise.
+
+After fitting the model in the previous exercise, let's explore the fit of our smoc2 data to the negative binomial model by plotting the dispersion estimates using the plotDispEsts() function. Remember that the dispersion estimates are used to model the raw counts; if the dispersions don't follow the assumptions made by DESeq2, then the variation in the data could be poorly estimated and the DE results could be less accurate.
+
+The assumptions DESeq2 makes are that the dispersions should generally decrease with increasing mean and that they should more or less follow the fitted line.
+
+## Instructions:
+Plot the dispersion estimates for the smoc2 data using the plotDispEsts() function. Assume all prior steps have been executed, including the creation of the DESeq2 object, dds_smoc2 and running the DESeq() function.
+
+```{r}
+# Plot dispersions
+plotDispEsts(dds_smoc2)
+
+# Nice work! This is always a good plot to check because it gives us an idea about the fit of our data to the model. Now, let's observe the plot and answer questions about whether these dispersion estimates meet expectations for RNA-seq data.
+
+# Great job! The assumptions of DESeq2 are met since the dispersions decrease with increasing mean and the raw dispersions seem to cluster around the maximum likelihood line.
+```
+
+# DESeq2 model - extracting results
+NOTE: It may take a bit longer to load this exercise.
+
+After exploring the dispersions and deciding the data fits the DESeq2 model well, we want to extract the results.
+
+Assume all prior steps have been executed, including the creation of the DESeq2 object, dds_smoc2, and running the DESeq() function.
+
+## Instructions:
+Use the results() function to specify the contrast for the comparison using an alpha of 0.05. For the condition of interest, condition, output the results for the fibrosis sample group relative to the normal sample group, so that the normal sample group is the base level.
+
+```{r}
+# Extract the results of the differential expression analysis
+smoc2_res <- results(dds_smoc2, 
+                     contrast = c("condition","fibrosis", "normal"),
+                     alpha = .05)
+# Wonderful! Now we have extracted the differential expression results for the fibrosis condition relative to the normal condition.
+```
+
+# DESeq2 results - LFC shrinkage:
+NOTE: It may take a bit longer to load this exercise.
+
+To improve the fold change estimates for our data, we want to take our results and shrink the log2 fold changes using the lfcShrink() function.
+
+Assume all prior steps have been executed, including the creation of the DESeq2 object, dds_smoc2, running the DESeq() function, and extracting the results, smoc2_res.
+
+## Instructions:
+Perform shrinkage of the log2 foldchanges using the lfcShrink() function.
+
+```{r}
+# Shrink the log2 fold change estimates to be more accurate
+smoc2_res <- lfcShrink(dds_smoc2, 
+                       contrast = c("condition","fibrosis", "normal"),
+                       res = smoc2_res)
+
+# Great job, we now have constructed our final results table with more accurate log 2 fold changes.
+```
+
+# DESeq2 results exploration:
+NOTE: It may take a bit longer to load this exercise.
+
+To reduce the number of DE genes that we are returning and to reduce the likelihood of the DE genes being biologically meaningful, we are going to use a small log2 fold change threshold to determine the DE genes.
+
+# Instructions:
+Extract the smoc2 results using the results() function, similar to before, with an alpha of 0.05 and with normal as the base level of condition. However, this time use a log2 fold change threshold of 0.32. Assume all prior steps have been executed, including the creation of the DESeq2 object, dds_smoc2, and running the DESeq() function.
+
+Perform shrinkage of the log2 foldchanges using the lfcShrink() function.
+
+```{r}
+# Explore the results() function
+?results
+
+# Extract results
+smoc2_res <- results(dds_smoc2, 
+                     contrast = c("condition","fibrosis", "normal"), 
+                     alpha = .05, 
+                     lfcThreshold = .32)
+
+# Shrink the log2 fold changes
+smoc2_res <- lfcShrink(dds_smoc2, 
+                       contrast = c("condition","fibrosis", "normal"),
+                       res = smoc2_res)
+
+# Well done! Now we implemented a log2 fold change threshold of 1.25 fold (log2 0.32) when testing for significant genes. Now we can use these results to subset only the significant genes with p-adjusted values less than 0.05.
+```
+
+# Summarizing DESeq2 results
+NOTE: It may take a bit longer to load this exercise.
+
+Now that we have extracted our results, we can get a nice overview of the number of differentially expressed genes there are for our designated alpha level using the summary() function. It will output the numbers/percentages of up- and down-regulated genes, as well as, give information about independent filtering and outliers removed.
+
+# Instructions:
+
+Check how many genes are differentially expressed in our results, smoc2_res, using DESeq2's summary() function.
+
+```{r}
+# Get an overview of the results                    
+summary(smoc2_res)
+
+# Great job, we are seeing quite a few differentially expressed genes. This is good to know moving forward.
+```
+
+# DESeq2 significant results
+NOTE: It may take a bit longer to load this exercise.
+
+Now let's extract the significant results! Assume that we have the extracted results from the previous exercise, smoc2_res.
+
+## Instructions:
+Save the results, smoc2_res, as a dataframe using the data.frame() function on the results object.
+
+Extract the significant genes with p-adjusted values less than 0.05 (the alpha value) using the subset() function.
+
+```{r}
+# Save results as a data frame
+smoc2_res_all <- data.frame(smoc2_res)
+
+# Subset the results to only return the significant genes with p-adjusted values less than 0.05
+smoc2_res_sig <- subset(smoc2_res_all,padj < 0.05)
+
+# Great job! Now we have our significant genes. We can search through the significant genes for any genes of interest or functional analyses to explore any over-represented processes or pathways.
+```
+
+# DESeq2 visualizations - MA and volcano plots
+NOTE: It may take a bit longer to load this exercise.
+
+To explore the results, visualizations can be helpful to see a global view of the data, as well as, characteristics of the significant genes. Usually, we expect to see significant genes identified across the range of mean values, which we can plot using the MA plot. If we only see significant genes with high mean values, then it could indicate an issue with our data. The volcano plot helps us to get an idea of the range of fold changes needed to identify significance in our data.
+
+Let's explore our results using MA plots and volcano plots.
+
+## Instructions:
+
+Create an MA plot using the plotMA() function and using the results object, smoc2_res as input.
+
+Create a new column as a logical vector regarding whether padj values are less than 0.05 for the results using the mutate() function.
+
+Create a volcano plot of the log2 foldchange values versus the -log10 adjusted p-value using ggplot() and coloring the points for the genes by whether or not they are significant.
+
+```{r}
+# Create MA plot
+plotMA(smoc2_res)
+
+# Generate logical column 
+smoc2_res_all <- data.frame(smoc2_res) %>% mutate(threshold = padj < 0.05)
+
+# Create the volcano plot
+ggplot(smoc2_res_all) + 
+  geom_point(aes(x = log2FoldChange, y = -log10(padj), color = threshold)) + 
+  xlab("log2 fold change") + 
+  ylab("-log10 adjusted p-value") + 
+  theme(legend.position = "none", 
+        plot.title = element_text(size = rel(1.5), hjust = 0.5), 
+        axis.title = element_text(size = rel(1.25)))
+
+# Great work! These plots look nice and don't raise any worries about the data. We are also able to detect fold changes that are quite small.
+```
+
+# DESeq2 visualizations - heatmap
+NOTE: It may take a bit longer to load this exercise.
+
+Visualizations can also be helpful in exploring the significant genes in more detail. The expression heatmap can be helpful in looking at how different the expression of all significant genes are between sample groups, while the expression plot can look at the top significant genes or choose individual genes of interest to investigate the expression levels between samplegroups.
+
+## Instructions:
+
+Subset the normalized counts to only include the significant genes. Use the row names of the smoc2_res_sig significant results to subset the normalized counts, normalized_counts_smoc2.
+
+Create the heatmap using sig_norm_counts_smoc2. Color the heatmap using the palette, heat_colors, cluster the rows without showing row names, and scale the values by "row". For the annotation, use select() to select only the condition column from the smoc2_metadata.
+
+```{r}
+# Subset normalized counts to significant genes
+sig_norm_counts_smoc2 <- normalized_counts_smoc2[rownames(smoc2_res_sig), ]
+
+# Choose heatmap color palette
+heat_colors <- brewer.pal(n = 6, name = "YlOrRd")
+
+# Plot heatmap
+pheatmap(sig_norm_counts_smoc2, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         show_rownames = FALSE,
+         annotation = select(smoc2_metadata, condition), 
+         scale = "row")
+
+# Wonderful, we can see the significant genes show expression that is clearly different between sample groups for most genes (rows) in the heatmap.
+```
+
+# RNA-Seq DE workflow summary
+NOTE: It may take a bit longer to load this exercise.
+
+Let's run through the DESeq2 workflow using the full dataset with both wildtype and smoc2 overexpression samples included. We have loaded the DESeq2 and dplyr libraries and read in the metadata file, all_metadata and the raw counts file, all_rawcounts for you.
+
+## Instructions:
+
+- Check that the samples are in the same order in both all_rawcounts and all_metadata using the rownames(), colnames(), all(), and %in% operator.
+- Create the DESeq2 object using the appropriate design, testing for the effect of condition while controlling for genotype.
+- Create the DESeq2 object using the appropriate design, controlling for genotype and condition individually, but test for genotype:condition.
+
+```{r}
+# Check that all of the samples are in the same order in the metadata and count data
+all(rownames(all_metadata) %in% colnames(all_rawcounts))
+
+# DESeq object to test for the effect of fibrosis regardless of genotype
+dds_all <- DESeqDataSetFromMatrix(countData = all_rawcounts,
+                                  colData = all_metadata,
+                                  design = ~ condition)
+
+
+# DESeq object to test for the effect of genotype on the effect of fibrosis                        
+dds_complex <- DESeqDataSetFromMatrix(countData = all_rawcounts,
+                                      colData = all_metadata,
+                                      design = ~ condition + genotype + genotype:condition)
+
+# Great work! We have now created our DESeq2 objects for running the differential expression analyses.
+```
+
+# DE analysis
+NOTE: It may take a bit longer to load this exercise.
+
+We are going to continue using the full dataset comparing the genes that exhibit significant expression differences between normal and fibrosis samples regardless of genotype (design: ~ genotype + condition). Therefore, we will use our dds_all DESeq2 object created in the previous exercise. Assume this object is created and all libraries are loaded. In this exercise let's perform the unsupervised clustering analyses to explore the clustering of our samples and sources of variation.
+
+# Instructions:
+
+- Log transform the normalized counts inside the dds_all object using the vst() function, being blind to sample group information.
+- Create the correlation heatmap of the correlation values of the log normalized counts using the pheatmap() function. Include annotation bars for genotype and condition.
+- Plot the PCA with the plotPCA() function using vsd_all. Color the plot by condition.
+- Plot the PCA with the plotPCA() function using vsd_all. Color the plot by genotype.
+
+```{r}
+# Log transform counts for QC
+vsd_all <- vst(dds_all, blind = TRUE)
+
+# Create heatmap of sample correlation values
+vsd_all %>% 
+  assay() %>%
+  cor() %>%
+  pheatmap(annotation =  select(all_metadata, c("condition", "genotype")))
+
+# Create the PCA plot for PC1 and PC2 and color by condition 
+plotPCA(vsd_all, intgroup = "condition")
+
+# Create the PCA plot for PC1 and PC2 and color by genotype    
+plotPCA(vsd_all, intgroup = "genotype")
+
+# Awesome work! Now that we have explored the data and identified sources of variation and clustering of our samples we are ready for DE analysis.
+```
+
+# DE analysis results
+After exploring the PCA and correlation heatmap, we found good clustering of our samples on PC1, which seemed to represent the variation in the data due to fibrosis, and PC2, which appeared to represent variation in the data due to smoc2 overexpression. We did not find additional sources of variation in the data, nor any outliers to remove. Therefore, we can proceed by running DESeq2, DE testing, and shrinking the fold changes. We performed these steps for you to generate the final results, res_all.
+
+In this exercise, we'll want to subset the significant genes from the results and output the top 10 DE genes by adjusted p-value.
+
+## Instructions:
+
+- Use the subset() function to extract those values with an adjusted p-value less than 0.05. Save the subset as a data frame named smoc2_sig by using the data.frame() function and turning the row names to a column named geneID using the rownames_to_column() function.
+- Order the significant results by adjusted p-values using the arrange() function, select the columns with Ensembl gene ID and adjusted p-values, and output the top significant genes using head().
+
+```{r}
+# Select significant genese with padj < 0.05
+smoc2_sig <- subset(res_all, padj < 0.05) %>%
+  data.frame() %>%
+  rownames_to_column(var = "geneID")
+
+# Extract the top 6 genes with padj values
+smoc2_sig %>%
+  arrange(padj) %>%
+  select(geneID, padj) %>%
+  head()
+
+# Great work! You have identified the differentially expressed genes. Now it would be time to validate any of the interesting results! Also, remember that we can use the annotables package to convert the Ensembl IDs to the more recognizable gene symbols.
+```
+
+
